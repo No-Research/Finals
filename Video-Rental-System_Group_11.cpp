@@ -195,57 +195,115 @@ void VIDEO::show_Details() {
 }
 
 void VIDEO::display_all_Videos(const list<VIDEO>& videoList) {
-    // Display all the videos
+    string videoData = readFromFile("VIDEO.txt");
+
+    // Check if the videoData is empty
+    if (videoData.empty()) {
+        cout << "No videos found." << endl;
+        return;
+    }
+
     cout << "All Videos:" << endl;
-    for (const auto& video : videoList) {
-        cout << "Video ID: " << video.video_ID << endl;
-        cout << "Title: " << video.movie_Title << endl;
-        cout << "Genre: " << video.genre << endl;
-        cout << "Production: " << video.production << endl;
-        cout << "Number of Copies: " << video.number_of_Copies << endl;
-        cout << "Filename: " << video.movie_Filename << endl;
+
+    size_t startPos = 0;
+    size_t endPos = videoData.find('\n', startPos);
+
+    while (endPos != string::npos) {
+        string videoDetails = videoData.substr(startPos, endPos - startPos);
+
+        // Split the video details into individual fields
+        string delimiter = ",";
+        size_t fieldPos = 0;
+        string field;
+        int fieldIndex = 0;
+        while ((fieldPos = videoDetails.find(delimiter)) != string::npos) {
+            field = videoDetails.substr(0, fieldPos);
+            switch (fieldIndex) {
+            case 0:
+                cout << "Video ID: " << field << endl;
+                break;
+            case 1:
+                cout << "Title: " << field << endl;
+                break;
+            case 2:
+                cout << "Genre: " << field << endl;
+                break;
+            case 3:
+                cout << "Production: " << field << endl;
+                break;
+            case 4:
+                cout << "Number of Copies: " << field << endl;
+                break;
+            case 5:
+                cout << "Filename: " << field << endl;
+                break;
+            }
+            videoDetails.erase(0, fieldPos + delimiter.length());
+            fieldIndex++;
+        }
         cout << endl;
+
+        startPos = endPos + 1;
+        endPos = videoData.find('\n', startPos);
     }
 }
+
 
 bool VIDEO::is_available(stack<int>& rentedVideos) {
     int videoId;
     cout << "Enter the video ID: ";
     cin >> videoId;
 
-    stack<int> tempStack;
+    // Read the current contents of the video file
+    string videoData = readFromFile("VIDEO.txt");
 
-    while (!rentedVideos.empty()) {
-        int rentedVideo = rentedVideos.top();
-        rentedVideos.pop();
+    // Find the details for the specified video
+    size_t pos = videoData.find(to_string(videoId) + ",");
+    if (pos != string::npos) {
+        // Find the end of the line to extract the number of copies
+        size_t endPos = videoData.find('\n', pos);
+        string videoDetails = videoData.substr(pos, endPos - pos);
 
-        if (rentedVideo == videoId) {
-            cout << "Video is not available." << endl;
+        // Split the video details into individual fields
+        string delimiter = ",";
+        size_t fieldPos = 0;
+        string field;
+        int fieldIndex = 0;
+        int numCopies = 0;  // Initialize the number of copies
+        while ((fieldPos = videoDetails.find(delimiter)) != string::npos) {
+            field = videoDetails.substr(0, fieldPos);
+            videoDetails.erase(0, fieldPos + delimiter.length());
 
-            while (!tempStack.empty()) {
-                int rentedVideo = tempStack.top();
-                tempStack.pop();
-
-                rentedVideos.push(rentedVideo);
+            if (fieldIndex == 4) {
+                numCopies = stoi(field);  // Store the number of copies
             }
 
-            return false;
+            fieldIndex++;
+        }
+
+        // Check the availability based on the number of copies
+        if (!rentedVideos.empty()) {
+            int rentedVideo = rentedVideos.top();
+            if (rentedVideo == videoId) {
+                cout << "Video is not available." << endl;
+                return false;
+            }
+        }
+
+        if (numCopies > 0) {
+            cout << "Video is available." << endl;
+            return true;
         }
         else {
-            tempStack.push(rentedVideo);
+            cout << "Video is not available." << endl;
+            return false;
         }
     }
 
-    while (!tempStack.empty()) {
-        int rentedVideo = tempStack.top();
-        tempStack.pop();
-
-        rentedVideos.push(rentedVideo);
-    }
-
-    cout << "Video is available." << endl;
-    return true;
+    cout << "Video not found." << endl;
+    return false;
 }
+
 
 void CUSTOMER::add_Customer(list<CUSTOMER>& customerList) {
     CUSTOMER newCustomer;
@@ -311,11 +369,11 @@ void CUSTOMER::list_Videos_Rented(const list<VIDEO>& videoList, queue<int>& rent
         for (const auto& video : videoList) {
             if (video.getVideoID() == rentedVideoId) {
                 cout << "Video ID: " << video.getVideoID() << endl;
-                cout << "Title: " << video.getMovieTitle() << endl;
+                cout << "Movie Title: " << video.getMovieTitle() << endl;
                 cout << "Genre: " << video.getGenre() << endl;
                 cout << "Production: " << video.getProduction() << endl;
-                cout << "Number of Copies: " << video.getNumberOfCopies() << endl;
-                cout << "Filename: " << video.getMovieFilename() << endl;
+                cout << "No. Copies: " << video.getNumberOfCopies() << endl;
+                cout << "Image File: " << video.getMovieFilename() << endl;
                 cout << endl;
 
                 found = true;
@@ -397,12 +455,10 @@ int main() {
             case 6: {
                 // Check Video Availability
                 VIDEO video;
-                if (video.is_available(reinterpret_cast<stack<int>&>(rentedVideos)))
-                {
+                if (video.is_available(reinterpret_cast<stack<int>&>(rentedVideos))) {
                     cout << "Video is available." << endl;
                 }
-                else
-                {
+                else {
                     cout << "Video is not available." << endl;
                 }
                 break;
@@ -451,6 +507,8 @@ int main() {
                 break;
             }
             }
+
+            
         }
         catch (const exception& e) {
             cout << "An error occurred: " << e.what() << endl;
